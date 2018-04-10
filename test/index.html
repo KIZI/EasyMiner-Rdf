@@ -1,0 +1,144 @@
+<!-- HTML for static distribution bundle build -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>EasyMiner-Rdf Test tool</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
+</head>
+
+<body>
+
+<h1>EasyMiner-Rdf Test tool</h1>
+
+<div>
+    <label>Address: <input type="text" name="address" value="http://localhost:8851/api"/></label>
+</div>
+
+<div>
+    <label>Task id: <input type="text" name="taskid" value="dbafad7b-10d5-4669-bada-2f1e9ac8e1c7"/></label>
+</div>
+
+<h2>Create task</h2>
+
+<form enctype="multipart/form-data" id="testpost" action="">
+
+    <div>
+        <label>name: <input type="text" name="name" value="amie"/></label>
+    </div>
+    <div>
+        <label>timeout: <input type="text" name="timeout"/></label>
+    </div>
+    <div>
+        <label>min-headsize: <input type="text" name="min-headsize"/></label>
+    </div>
+    <div>
+        <label>min-head-coverage: <input type="text" name="min-head-coverage"/></label>
+    </div>
+    <div>
+        <label>max-rule-length: <input type="text" name="max-rule-length"/></label>
+    </div>
+    <div>
+        <label>min-confidence: <input type="text" name="min-confidence"/></label>
+    </div>
+    <div>
+        <label>topk: <input type="text" name="topk"/></label>
+    </div>
+    <div>
+        <label>instances: <select name="instances">
+            <option value=""></option>
+            <option value="all">all</option>
+            <option value="objects">objects</option>
+        </select></label>
+    </div>
+    <div>
+        <label>duplicit-predicates: <input type="checkbox" name="duplicit-predicates"/></label>
+    </div>
+    <div>
+        <label>body: <textarea name="body"></textarea></label>
+    </div>
+    <div>
+        <label>body-type: <select name="body-type">
+            <option value="text/turtle">text/turtle</option>
+            <option value="application/n-triples">application/n-triples</option>
+        </select></label>
+    </div>
+
+    <div>
+        <input type="button" value="odeslat" onclick="testPost();"/>
+    </div>
+
+</form>
+
+<h2>Get task</h2>
+
+<form enctype="multipart/form-data" id="testget" action="">
+
+    <div>
+        <input type="button" value="odeslat" onclick="testGet();"/>
+    </div>
+
+</form>
+
+<script>
+  function getAddress() {
+    return $("input[name=address]").val();
+  }
+
+  function getTaskId() {
+    return $("input[name=taskid]").val();
+  }
+
+  function addFieldToFormData(formData, form, name) {
+    var element = $("input[name=" + name + "], select[name=" + name + "]", form);
+    if (element.is(':checkbox')) {
+      if (element.is(":checked")) {
+        formData.append(name, new Blob(["1"], {type: "text/plain; charset=UTF-8"}));
+      }
+    } else {
+      if (element.val()) {
+        formData.append(name, new Blob([element.val()], {type: "text/plain; charset=UTF-8"}));
+      }
+    }
+  }
+
+  function testPost() {
+    var form = $("#testpost");
+    var formData = new FormData();
+    addFieldToFormData(formData, form, "name");
+    addFieldToFormData(formData, form, "timeout");
+    addFieldToFormData(formData, form, "min-headsize");
+    addFieldToFormData(formData, form, "min-head-coverage");
+    addFieldToFormData(formData, form, "max-rule-length");
+    addFieldToFormData(formData, form, "min-confidence");
+    addFieldToFormData(formData, form, "topk");
+    addFieldToFormData(formData, form, "instances");
+    addFieldToFormData(formData, form, "duplicit-predicates");
+    formData.append("_charset_", "UTF-8");
+    var bodyType = $("select[name=body-type]", form).val();
+    var body = $("textarea[name=body]", form).val();
+    formData.append("body", new Blob([body], {type: bodyType}));
+    var xhr = new XMLHttpRequest();
+    xhr.open("POST", getAddress() + "/" + getTaskId(), true);
+    xhr.onreadystatechange = function () {
+      if (xhr.readyState === XMLHttpRequest.DONE) {
+        console.log(xhr);
+      }
+    };
+    xhr.send(formData);
+  }
+
+  function testGet() {
+    $.ajax({
+      method: "GET",
+      url: getAddress() + "/" + getTaskId(),
+      cache: false
+    }).always(function (data) {
+      console.log(data);
+    });
+  }
+</script>
+
+</body>
+
+</html>
