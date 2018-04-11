@@ -9,7 +9,7 @@
 
 <body>
 
-<h1>EasyMiner-Rdf Test tool</h1>
+<h1>EasyMiner-Rdf test tool</h1>
 
 <div>
     <label>Address: <input type="text" name="address" value="http://localhost:8851/api"/></label>
@@ -27,35 +27,41 @@
         <label>name: <input type="text" name="name" value="amie"/></label>
     </div>
     <div>
-        <label>timeout: <input type="text" name="timeout"/></label>
+        <label>timeout: <input type="text" name="timeout"/> (in minutes, type=integer, min=1, max=30,
+            default=10)</label>
     </div>
     <div>
-        <label>min-headsize: <input type="text" name="min-headsize"/></label>
+        <label>min-headsize: <input type="text" name="min-headsize"/> (type=integer, min=1, max=unlimited, default=100)</label>
     </div>
     <div>
-        <label>min-head-coverage: <input type="text" name="min-head-coverage"/></label>
+        <label>min-head-coverage: <input type="text" name="min-head-coverage"/> (type=double, min=0.01, max=1,
+            default=0.05)</label>
     </div>
     <div>
-        <label>max-rule-length: <input type="text" name="max-rule-length"/></label>
+        <label>max-rule-length: <input type="text" name="max-rule-length"/> (type=integer, min=2, max=5,
+            default=3)</label>
     </div>
     <div>
-        <label>min-confidence: <input type="text" name="min-confidence"/></label>
+        <label>min-confidence: <input type="text" name="min-confidence"/> (type=double, min=0.01, max=1,
+            default=not-set)</label>
     </div>
     <div>
-        <label>topk: <input type="text" name="topk"/></label>
+        <label>topk: <input type="text" name="topk"/> (type=integer, min=1, max=unlimited, default=not-set)</label>
     </div>
     <div>
         <label>instances: <select name="instances">
             <option value=""></option>
             <option value="all">all</option>
             <option value="objects">objects</option>
-        </select></label>
+        </select></label> (''=without constants, all=with constants, objects=with constants only in the object position)
     </div>
     <div>
-        <label>duplicit-predicates: <input type="checkbox" name="duplicit-predicates"/></label>
+        <label>duplicit-predicates: <input type="checkbox" name="duplicit-predicates"/> (checked=duplicit predicates
+            will be allowed within one rule)</label>
     </div>
     <div>
-        <label>body: <textarea name="body"></textarea></label>
+        <label>body: <textarea name="body"></textarea> or <input type="file" name="body-file"/> (in utf-8, choose file
+            or fill the text area)</label>
     </div>
     <div>
         <label>body-type: <select name="body-type">
@@ -79,6 +85,27 @@
     </div>
 
 </form>
+
+<h2>Result</h2>
+
+<pre id="result" style="display: block; border: 1px dashed gray; height: 300px; overflow: auto;"></pre>
+
+<h2>Limitations</h2>
+
+<ul>
+    <li>Maximal number of triples is 100 000. If the input RDF dataset is larger then it is trimmed on the first 100 000
+        triples.
+    </li>
+    <li>Maximal size of HTTP request is 30MB.</li>
+    <li>There is a 30 seconds timeout for dataset uploading and result picking up.</li>
+    <li>Maximal mining time is 30 minutes.</li>
+    <li>Maximal time for picking up the result is one hour.</li>
+    <li>Minimal head coverage and confidence thresholds are 0.01.</li>
+    <li>The service returns "503 service unavailable" if the number of found rules is too high and it is not possible to
+        write them into the ouput json format due to a memory limitation. When this problem occurs we recommend to set a
+        topK value.
+    </li>
+</ul>
 
 <script>
   function getAddress() {
@@ -104,6 +131,8 @@
 
   function testPost() {
     var form = $("#testpost");
+    var button = $("input:button", form);
+    button.prop('disabled', true);
     var formData = new FormData();
     addFieldToFormData(formData, form, "name");
     addFieldToFormData(formData, form, "timeout");
@@ -117,24 +146,79 @@
     formData.append("_charset_", "UTF-8");
     var bodyType = $("select[name=body-type]", form).val();
     var body = $("textarea[name=body]", form).val();
-    formData.append("body", new Blob([body], {type: bodyType}));
+    if (body) {
+      formData.append("body", new Blob([body], {type: bodyType}));
+    } else {
+      var file = $("input[name=body-file]", form).get(0).files[0];
+      if (file !== undefined) {
+        formData.append("body", new Blob([file], {type: bodyType}));
+      }
+    }
     var xhr = new XMLHttpRequest();
     xhr.open("POST", getAddress() + "/" + getTaskId(), true);
     xhr.onreadystatechange = function () {
       if (xhr.readyState === XMLHttpRequest.DONE) {
         console.log(xhr);
+        if (xhr.status !== 202) {
+          try {
+            renderResult(JSON.parse(xhr.responseText.replace(/\n/g, "\\n")), true);
+          } catch (e) {
+            console.log(e);
+            renderResult(xhr.responseText, true);
+          }
+          button.prop('disabled', false);
+        } else {
+          renderResult("accepted", false);
+        }
       }
     };
     xhr.send(formData);
   }
 
+  function renderResult(data, isError) {
+    var result = "";
+    if ($.isPlainObject(data) || $.isArray(data)) {
+      result = JSON.stringify(data, null, 2);
+    } else {
+      result = data.toString();
+    }
+    var resultElement = $("#result");
+    if (isError) {
+      resultElement.css("background-color", "#ddbbbb");
+    } else {
+      resultElement.css("background-color", "#aeddb3");
+    }
+    resultElement.text(result);
+  }
+
   function testGet() {
+    var form = $("#testget");
+    var button = $("input:button", form);
+    var postForm = $("#testpost");
+    var postButton = $("input:button", postForm);
+    button.prop('disabled', true);
     $.ajax({
       method: "GET",
       url: getAddress() + "/" + getTaskId(),
       cache: false
-    }).always(function (data) {
+    }).done(function (data, status, xhr) {
       console.log(data);
+      renderResult(data, false);
+      if (xhr.status !== 202) {
+        postButton.prop('disabled', false);
+      }
+      button.prop('disabled', false);
+    }).fail(function (xhr) {
+      console.log(xhr);
+      if (xhr.status !== 404) {
+        postButton.prop('disabled', false);
+      }
+      if (xhr.responseJSON === undefined) {
+        renderResult(xhr.responseText, true);
+      } else {
+        renderResult(xhr.responseJSON, true);
+      }
+      button.prop('disabled', false);
     });
   }
 </script>

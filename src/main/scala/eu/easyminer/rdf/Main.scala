@@ -9,10 +9,8 @@ import akka.pattern.ask
 import akka.stream.{ActorMaterializer, Materializer}
 import akka.util.Timeout
 import com.github.propi.rdfrules.algorithm.RulesMining
-import com.github.propi.rdfrules.algorithm.amie.Amie
 import com.github.propi.rdfrules.data.Dataset
 import com.github.propi.rdfrules.rule.{RuleConstraint, Threshold}
-import com.github.propi.rdfrules.utils.Debugger
 import eu.easyminer.rdf.BasicExceptions.ValidationException
 import eu.easyminer.rdf.TaskParamsUnmarshallers._
 import eu.easyminer.rdf.TaskResultMarshallers._
@@ -59,14 +57,12 @@ object Main extends DefaultServer with DefaultServerConf {
                 actorSystem.actorOf(TaskActor.props(
                   taskId,
                   dataset.take(maxTriples),
-                  logger => Debugger(logger) { implicit debugger =>
-                    Function.chain[RulesMining](List(
-                      x => minConfidence.foldLeft(x)(_ addThreshold _),
-                      x => topK.foldLeft(x)(_ addThreshold _),
-                      x => instances.foldLeft(x)(_ addConstraint _),
-                      x => if (duplicitPredicates.isEmpty) x.addConstraint(RuleConstraint.WithoutDuplicitPredicates()) else x
-                    ))(Amie(logger).addThreshold(timeout).addThreshold(minHeadSize).addThreshold(minHeadCoverage).addThreshold(maxRuleLength))
-                  }
+                  miner => Function.chain[RulesMining](List(
+                    x => minConfidence.foldLeft(x)(_ addThreshold _),
+                    x => topK.foldLeft(x)(_ addThreshold _),
+                    x => instances.foldLeft(x)(_ addConstraint _),
+                    x => if (duplicitPredicates.isEmpty) x.addConstraint(RuleConstraint.WithoutDuplicitPredicates()) else x
+                  ))(miner.addThreshold(timeout).addThreshold(minHeadSize).addThreshold(minHeadCoverage).addThreshold(maxRuleLength))
                 ), taskId.toString)
                 complete(StatusCodes.Accepted)
               } else {

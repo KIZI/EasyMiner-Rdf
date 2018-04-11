@@ -28,13 +28,13 @@ object TaskParamsUnmarshallers {
   }
 
   implicit val minHeadCoverageUnmarshaller: FromStringUnmarshaller[Threshold.MinHeadCoverage] = Unmarshaller.strict {
-    case AnyToDouble(x) if x > 0 && x <= 1 => Threshold.MinHeadCoverage(x)
-    case _ => throw DeserializationException("Min head coverage must be real number, greater than zero and lower than or equal to one.")
+    case AnyToDouble(x) if x >= 0.01 && x <= 1 => Threshold.MinHeadCoverage(x)
+    case _ => throw DeserializationException("Min head coverage must be real number, greater than or equal to 0.01 and lower than or equal to one.")
   }
 
   implicit val minConfidenceUnmarshaller: FromStringUnmarshaller[Threshold.MinConfidence] = Unmarshaller.strict {
-    case AnyToDouble(x) if x > 0 && x <= 1 => Threshold.MinConfidence(x)
-    case _ => throw DeserializationException("Min confidence must be real number, greater than zero and lower than or equal to one.")
+    case AnyToDouble(x) if x >= 0.01 && x <= 1 => Threshold.MinConfidence(x)
+    case _ => throw DeserializationException("Min confidence must be real number, greater than or equal to 0.01 and lower than or equal to one.")
   }
 
   implicit val maxRuleLengthUnmarshaller: FromStringUnmarshaller[Threshold.MaxRuleLength] = Unmarshaller.strict {

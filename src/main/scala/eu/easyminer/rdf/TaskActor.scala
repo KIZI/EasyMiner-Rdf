@@ -4,13 +4,17 @@ import java.util.{Date, UUID}
 
 import akka.actor.{Actor, Props, ReceiveTimeout}
 import com.github.propi.rdfrules.algorithm.RulesMining
+import com.github.propi.rdfrules.algorithm.amie.Amie
+import com.github.propi.rdfrules.algorithm.amie.RuleCounting._
 import com.github.propi.rdfrules.data.Dataset
 import com.github.propi.rdfrules.index.Index
-import com.typesafe.scalalogging.Logger
+import com.github.propi.rdfrules.rule.{Measure, Threshold}
+import com.github.propi.rdfrules.utils.Debugger
 import eu.easyminer.rdf.MappedRule._
 import eu.easyminer.rdf.TaskActor.{Request, Response}
 import org.slf4j.event.Level
 
+import scala.collection.parallel.immutable.ParVector
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
@@ -19,7 +23,7 @@ import scala.util.{Failure, Success}
 /**
   * Created by Vaclav Zeman on 9. 4. 2018.
   */
-class TaskActor private(taskId: UUID, dataset: Dataset, miner: Logger => RulesMining) extends Actor {
+class TaskActor private(taskId: UUID, dataset: Dataset, miner: RulesMining => RulesMining) extends Actor {
 
   context.setReceiveTimeout(1 hour)
 
@@ -37,7 +41,15 @@ class TaskActor private(taskId: UUID, dataset: Dataset, miner: Logger => RulesMi
     logger.info("Dataset loading into memory...")
     val index = Index.fromDataset(dataset)
     val rules = index.tripleMap { implicit thi =>
-      miner(logger).mine
+      Debugger(logger) { implicit debugger =>
+        val builtMiner = miner(Amie(logger))
+        val rules = builtMiner.mine
+        builtMiner.thresholds.get[Threshold.MinConfidence].map { minConfidence =>
+          debugger.debug("Confidence counting", rules.size) { ad =>
+            ParVector(rules: _*).map(rule => ad.result()(rule.withConfidence(minConfidence.value))).filter(_.measures.exists[Measure.Confidence]).seq
+          }
+        }.getOrElse(rules)
+      }
     }
     logger.info(s"Mining task has been successful. Found rules: ${rules.size}.")
     index.tripleItemMap { implicit tihi =>
@@ -62,7 +74,7 @@ class TaskActor private(taskId: UUID, dataset: Dataset, miner: Logger => RulesMi
 
 object TaskActor {
 
-  def props(taskId: UUID, dataset: Dataset, miner: Logger => RulesMining): Props = Props(new TaskActor(taskId, dataset, miner))
+  def props(taskId: UUID, dataset: Dataset, miner: RulesMining => RulesMining): Props = Props(new TaskActor(taskId, dataset, miner))
 
   sealed trait Response
 
