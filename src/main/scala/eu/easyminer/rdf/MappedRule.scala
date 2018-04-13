@@ -3,15 +3,17 @@ package eu.easyminer.rdf
 import com.github.propi.rdfrules.data.TripleItem
 import com.github.propi.rdfrules.index.TripleItemHashIndex
 import com.github.propi.rdfrules.rule.{Atom, Measure, Rule}
+import com.github.propi.rdfrules.stringifier.Stringifier
 import com.github.propi.rdfrules.utils.TypedKeyMap
 import eu.easyminer.rdf.MappedRule.MappedAtom
+import com.github.propi.rdfrules.stringifier.CommonStringifiers._
 
 import scala.language.implicitConversions
 
 /**
   * Created by Vaclav Zeman on 9. 4. 2018.
   */
-case class MappedRule(head: MappedAtom, body: IndexedSeq[MappedAtom], measures: TypedKeyMap.Immutable[Measure])
+case class MappedRule(text: String, head: MappedAtom, body: IndexedSeq[MappedAtom], measures: TypedKeyMap.Immutable[Measure])
 
 object MappedRule {
 
@@ -37,7 +39,7 @@ object MappedRule {
   }
 
   implicit class PimpedSimpleRule(rule: Rule.Simple)(implicit mapper: TripleItemHashIndex) {
-    def toMappedRule: MappedRule = MappedRule(rule.head, rule.body.map(MappedAtom.apply), rule.measures)
+    def toMappedRule: MappedRule = MappedRule(Stringifier(rule.asInstanceOf[Rule]), rule.head, rule.body.map(MappedAtom.apply), rule.measures)
   }
 
 }

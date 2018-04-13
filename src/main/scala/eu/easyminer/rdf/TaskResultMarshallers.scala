@@ -57,6 +57,7 @@ object TaskResultMarshallers {
     def read(json: JsValue): MappedRule = ???
 
     def write(obj: MappedRule): JsValue = JsObject(
+      "text" -> JsString(obj.text),
       "head" -> obj.head.toJson,
       "body" -> JsArray(obj.body.iterator.map(_.toJson).toVector),
       "measures" -> JsArray(obj.measures.iterator.map(_.toJson).toVector)

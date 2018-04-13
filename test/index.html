@@ -175,10 +175,27 @@
     xhr.send(formData);
   }
 
+  function download(content, fileName, contentType) {
+    var a = document.createElement("a");
+    var file = new Blob([content], {type: contentType});
+    a.href = URL.createObjectURL(file);
+    a.download = fileName;
+    a.click();
+  }
+
   function renderResult(data, isError) {
     var result = "";
     if ($.isPlainObject(data) || $.isArray(data)) {
-      result = JSON.stringify(data, null, 2);
+      if (data.rules !== undefined) {
+        if (data.logs !== undefined) {
+          result = JSON.stringify(data.logs, null, 2);
+        } else {
+          result = "Result is downloading..."
+        }
+        download(JSON.stringify(data.rules, null, 2), "rules.json", "application/json");
+      } else {
+        result = JSON.stringify(data, null, 2);
+      }
     } else {
       result = data.toString();
     }
